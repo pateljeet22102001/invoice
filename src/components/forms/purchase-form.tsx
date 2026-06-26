@@ -11,6 +11,7 @@ import {
   FormTextarea,
 } from "@/components/forms/form-fields";
 import { PURCHASE_TYPE_OPTIONS } from "@/lib/constants/supplier-types";
+import { PURCHASE_PAYMENT_MODE_OPTIONS } from "@/lib/constants/payment-modes";
 import { formatQuantityWithUnit, quantityInputStep } from "@/lib/constants/product-units";
 import { splitGstTax } from "@/lib/gst";
 import { formatCurrency } from "@/lib/utils";
@@ -46,6 +47,8 @@ type LineRow = {
 
 const NEW_PRODUCT_VALUE = "__NEW__";
 const DEFAULT_NEW_GST = 5;
+
+const INLINE_SUPPLIER_PURCHASE_TYPES = ["FARMER", "UNREGISTERED", "APMC_MANDI"] as const;
 
 const initialState: FormState = {};
 
@@ -90,7 +93,13 @@ export function PurchaseForm({
   );
   const [lines, setLines] = useState<LineRow[]>([newLine(0, products.length === 0)]);
   const [supplierId, setSupplierId] = useState("");
+  const [isNewSupplier, setIsNewSupplier] = useState(suppliers.length === 0);
+  const [newSupplierName, setNewSupplierName] = useState("");
+  const [newSupplierVillage, setNewSupplierVillage] = useState("");
   const [purchaseType, setPurchaseType] = useState("FARMER");
+  const [paymentMode, setPaymentMode] = useState("CASH");
+  const [chequeNumber, setChequeNumber] = useState("");
+  const [payByDate, setPayByDate] = useState(dueDateString());
   const [commissionAgentId, setCommissionAgentId] = useState("");
   const [commissionRate, setCommissionRate] = useState(String(defaultCommissionRate));
 
@@ -100,6 +109,17 @@ export function PurchaseForm({
   );
 
   const isApmcMandi = purchaseType === "APMC_MANDI";
+  const allowsInlineSupplier = INLINE_SUPPLIER_PURCHASE_TYPES.includes(
+    purchaseType as (typeof INLINE_SUPPLIER_PURCHASE_TYPES)[number],
+  );
+
+  const supplierFieldLabel = isApmcMandi
+    ? "Seller (farmer / party at APMC market)"
+    : purchaseType === "FARMER"
+      ? "Farmer"
+      : purchaseType === "UNREGISTERED"
+        ? "Seller / party"
+        : "Supplier";
 
   const productMap = useMemo(
     () => new Map(products.map((p) => [p.id, p])),
@@ -231,10 +251,25 @@ export function PurchaseForm({
     );
   }
 
-  if (suppliers.length === 0) {
+  function handlePurchaseTypeChange(nextType: string) {
+    setPurchaseType(nextType);
+    if (nextType === "B2B") {
+      setIsNewSupplier(false);
+    } else if (
+      INLINE_SUPPLIER_PURCHASE_TYPES.includes(
+        nextType as (typeof INLINE_SUPPLIER_PURCHASE_TYPES)[number],
+      ) &&
+      suppliers.length === 0
+    ) {
+      setIsNewSupplier(true);
+      setSupplierId("");
+    }
+  }
+
+  if (purchaseType === "B2B" && suppliers.length === 0) {
     return (
       <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-        Add at least one supplier (farmer, APMC market, or trader) before creating a purchase bill.{" "}
+        Add at least one GST supplier before a B2B purchase bill.{" "}
         <a href="/suppliers/new" className="font-medium underline">
           Add supplier
         </a>
@@ -249,8 +284,8 @@ export function PurchaseForm({
       <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
         <p className="font-medium">Purchase Bill — stock is added here</p>
         <p className="mt-1 text-xs text-emerald-800">
-          Type item or grade name on the line — it is saved automatically. No separate
-          add-product step. Stock increases when status is Received or Paid.
+          Type farmer and item names on this bill — both are saved automatically. No separate
+          add-party or add-product step. Stock increases when status is Received or Paid.
         </p>
       </div>
 
@@ -267,7 +302,7 @@ export function PurchaseForm({
             name="purchaseType"
             required
             value={purchaseType}
-            onChange={(e) => setPurchaseType(e.target.value)}
+            onChange={(e) => handlePurchaseTypeChange(e.target.value)}
             className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
           >
             {PURCHASE_TYPE_OPTIONS.map((o) => (
@@ -279,22 +314,72 @@ export function PurchaseForm({
         </div>
       </div>
 
-      <FormSelect
-        label={isApmcMandi ? "Seller (farmer / party at APMC market)" : "Supplier"}
-        id="supplierId"
-        required
-        placeholder="Select supplier"
-        value={supplierId}
-        onChange={(e) => setSupplierId(e.target.value)}
-        options={suppliers.map((s) => ({
-          value: s.id,
-          label: s.gstin
-            ? `${s.name} (${s.gstin})`
-            : s.state
-              ? `${s.name} — ${s.state}`
-              : s.name,
-        }))}
-      />
+      {allowsInlineSupplier && isNewSupplier ? (
+        <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+          <FormField
+            label={supplierFieldLabel}
+            id="newSupplierName"
+            name="newSupplierName"
+            required
+            placeholder="Type farmer or party name"
+            value={newSupplierName}
+            onChange={(e) => setNewSupplierName(e.target.value)}
+            hint="Saved to your supplier list. Same name next time picks that party."
+          />
+          <FormField
+            label="Village / market (optional)"
+            id="newSupplierVillage"
+            name="newSupplierVillage"
+            placeholder="e.g. Nashik APMC"
+            value={newSupplierVillage}
+            onChange={(e) => setNewSupplierVillage(e.target.value)}
+          />
+          {suppliers.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                setIsNewSupplier(false);
+                setNewSupplierName("");
+                setNewSupplierVillage("");
+              }}
+              className="text-sm font-medium text-indigo-600 hover:text-indigo-800"
+            >
+              Pick from saved list
+            </button>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <FormSelect
+            label={supplierFieldLabel}
+            id="supplierId"
+            required
+            placeholder="Select supplier"
+            value={supplierId}
+            onChange={(e) => setSupplierId(e.target.value)}
+            options={suppliers.map((s) => ({
+              value: s.id,
+              label: s.gstin
+                ? `${s.name} (${s.gstin})`
+                : s.state
+                  ? `${s.name} — ${s.state}`
+                  : s.name,
+            }))}
+          />
+          {allowsInlineSupplier && (
+            <button
+              type="button"
+              onClick={() => {
+                setIsNewSupplier(true);
+                setSupplierId("");
+              }}
+              className="text-sm font-medium text-indigo-600 hover:text-indigo-800"
+            >
+              + New farmer / party name
+            </button>
+          )}
+        </div>
+      )}
 
       {isApmcMandi && (
         <div className="space-y-4 rounded-xl border border-amber-200 bg-amber-50 p-4">
@@ -364,7 +449,7 @@ export function PurchaseForm({
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2">
         <FormField
           label="Bill Date"
           id="billDate"
@@ -372,13 +457,58 @@ export function PurchaseForm({
           required
           defaultValue={todayString()}
         />
+        <FormSelect
+          label="Payment"
+          id="paymentMode"
+          name="paymentMode"
+          required
+          value={paymentMode}
+          onChange={(e) => setPaymentMode(e.target.value)}
+          options={PURCHASE_PAYMENT_MODE_OPTIONS.map((o) => ({
+            value: o.value,
+            label: o.label,
+          }))}
+        />
+      </div>
+
+      {paymentMode === "CHEQUE" && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField
+            label="Cheque Number"
+            id="chequeNumber"
+            name="chequeNumber"
+            required
+            placeholder="e.g. 123456"
+            value={chequeNumber}
+            onChange={(e) => setChequeNumber(e.target.value)}
+          />
+          <FormField
+            label="Cheque Due Date"
+            id="dueDate"
+            name="dueDate"
+            type="date"
+            required
+            value={payByDate}
+            onChange={(e) => setPayByDate(e.target.value)}
+            hint="When the cheque can be cleared"
+          />
+        </div>
+      )}
+
+      {paymentMode === "CREDIT" && (
         <FormField
-          label="Due Date"
+          label="Pay By Date"
           id="dueDate"
+          name="dueDate"
           type="date"
           required
-          defaultValue={dueDateString()}
+          value={payByDate}
+          onChange={(e) => setPayByDate(e.target.value)}
+          hint="When you will pay the farmer / supplier"
         />
+      )}
+
+      <div className="grid gap-4 sm:grid-cols-1 sm:max-w-xs">
         <FormSelect
           label="Status"
           id="status"

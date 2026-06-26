@@ -90,7 +90,7 @@ function KhataTable({
   outstandingLabel: string;
 }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+    <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
       <div className="border-b border-slate-200 px-6 py-4">
         <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
       </div>

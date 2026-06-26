@@ -196,7 +196,7 @@ export function FormCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="max-w-3xl rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+    <div className="w-full max-w-3xl rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6 lg:p-8">
       <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
       {description && (
         <p className="mt-1 text-sm text-slate-500">{description}</p>

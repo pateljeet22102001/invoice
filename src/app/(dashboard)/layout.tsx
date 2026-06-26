@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Sidebar } from "@/components/layout/sidebar";
+import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { prisma } from "@/lib/prisma";
 import { requireBusiness } from "@/lib/session";
 
@@ -16,16 +16,13 @@ export default async function DashboardLayout({
   });
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
-      <Sidebar
-        businessName={businessName}
-        userName={userName ?? "User"}
-        businessType={business?.businessType ?? "GENERAL_TRADING"}
-      />
-      <div className="flex min-h-screen flex-1 flex-col overflow-hidden">
-        {children}
-      </div>
-    </div>
+    <DashboardShell
+      businessName={businessName}
+      userName={userName ?? "User"}
+      businessType={business?.businessType ?? "GENERAL_TRADING"}
+    >
+      {children}
+    </DashboardShell>
   );
 }
 
@@ -51,5 +48,5 @@ export function PageShell({
 }: {
   children: React.ReactNode;
 }) {
-  return <main className="flex-1 overflow-y-auto p-8">{children}</main>;
+  return <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:p-8">{children}</main>;
 }

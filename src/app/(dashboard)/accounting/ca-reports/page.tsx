@@ -177,7 +177,7 @@ export default async function CaReportsPage({
           </section>
         </div>
 
-        <section className="mt-8 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <section className="mt-8 overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 px-6 py-4">
             <h2 className="text-lg font-semibold text-slate-900">Day book</h2>
             <p className="text-sm text-slate-500">
@@ -237,7 +237,7 @@ export default async function CaReportsPage({
           )}
         </section>
 
-        <section className="mt-8 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <section className="mt-8 overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 px-6 py-4">
             <h2 className="text-lg font-semibold text-slate-900">Audit trail</h2>
             <p className="text-sm text-slate-500">

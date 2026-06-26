@@ -57,7 +57,7 @@ export default async function SupplierKhataPage({
             </div>
           </div>
 
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+          <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
             <table className="min-w-full text-sm">
               <thead className="bg-slate-50">
                 <tr>

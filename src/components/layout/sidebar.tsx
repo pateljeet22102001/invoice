@@ -70,6 +70,8 @@ interface SidebarProps {
   businessName: string;
   userName: string;
   businessType?: string;
+  mobileOpen?: boolean;
+  onNavigate?: () => void;
 }
 
 function NavLink({
@@ -78,12 +80,14 @@ function NavLink({
   icon: Icon,
   badge,
   pathname,
-}: NavItem & { pathname: string }) {
+  onNavigate,
+}: NavItem & { pathname: string; onNavigate?: () => void }) {
   const isActive = pathname === href || pathname.startsWith(`${href}/`);
 
   return (
     <Link
       href={href}
+      onClick={onNavigate}
       className={cn(
         "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
         isActive
@@ -102,12 +106,23 @@ function NavLink({
   );
 }
 
-export function Sidebar({ businessName, userName, businessType = "GENERAL_TRADING" }: SidebarProps) {
+export function Sidebar({
+  businessName,
+  userName,
+  businessType = "GENERAL_TRADING",
+  mobileOpen = false,
+  onNavigate,
+}: SidebarProps) {
   const pathname = usePathname();
   const traderMode = usesTraderWorkflow(businessType);
 
   return (
-    <aside className="flex h-full w-64 flex-col border-r border-slate-200 bg-slate-950 text-slate-100">
+    <aside
+      className={cn(
+        "fixed inset-y-0 left-0 z-50 flex w-[min(100vw-3rem,16rem)] flex-col border-r border-slate-200 bg-slate-950 text-slate-100 transition-transform duration-200 ease-out lg:static lg:z-auto lg:w-64 lg:translate-x-0",
+        mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
+      )}
+    >
       <div className="flex items-center gap-3 border-b border-slate-800 px-6 py-5">
         <Link href="/dashboard" className="flex items-center gap-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500">
@@ -131,18 +146,18 @@ export function Sidebar({ businessName, userName, businessType = "GENERAL_TRADIN
         {traderMode ? (
           <>
             {traderPrimaryNav.map((item) => (
-              <NavLink key={item.href} {...item} pathname={pathname} />
+              <NavLink key={item.href} {...item} pathname={pathname} onNavigate={onNavigate} />
             ))}
             <p className="px-3 pt-4 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-600">
               More
             </p>
             {traderMoreNav.map((item) => (
-              <NavLink key={item.href} {...item} pathname={pathname} />
+              <NavLink key={item.href} {...item} pathname={pathname} onNavigate={onNavigate} />
             ))}
           </>
         ) : (
           retailNav.map((item) => (
-            <NavLink key={item.href} {...item} pathname={pathname} />
+            <NavLink key={item.href} {...item} pathname={pathname} onNavigate={onNavigate} />
           ))
         )}
       </nav>

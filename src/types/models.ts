@@ -183,6 +183,8 @@ export type PurchaseType = "B2B" | "FARMER" | "UNREGISTERED" | "APMC_MANDI";
 
 export type PurchaseStatus = "DRAFT" | "RECEIVED" | "PAID" | "CANCELLED";
 
+export type PurchasePaymentMode = "CASH" | "CHEQUE" | "CREDIT";
+
 export interface Supplier {
   id: string;
   businessId: string;
@@ -210,6 +212,8 @@ export interface PurchaseBill {
   commissionRate: number | null;
   commissionAmount: number;
   status: PurchaseStatus;
+  paymentMode: PurchasePaymentMode;
+  chequeNumber: string | null;
   billDate: Date;
   dueDate: Date;
   subtotal: number;

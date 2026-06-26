@@ -4,6 +4,7 @@ import { PageShell } from "@/app/(dashboard)/layout";
 import { PurchaseStatusForm } from "@/components/forms/purchase-status-form";
 import { FormCard } from "@/components/forms/form-fields";
 import { purchaseTypeLabel } from "@/lib/constants/supplier-types";
+import { purchasePaymentModeLabel } from "@/lib/constants/payment-modes";
 import { getPurchaseDetail } from "@/lib/purchases";
 import { requireBusiness } from "@/lib/session";
 import { splitGstTax } from "@/lib/gst";
@@ -131,9 +132,25 @@ export default async function PurchaseDetailPage({
                       <dd>{formatDate(purchase.billDate)}</dd>
                     </div>
                     <div className="flex justify-between gap-4">
-                      <dt>Due Date</dt>
-                      <dd>{formatDate(purchase.dueDate)}</dd>
+                      <dt>Payment</dt>
+                      <dd>{purchasePaymentModeLabel(purchase.paymentMode ?? "CASH")}</dd>
                     </div>
+                    {purchase.paymentMode === "CHEQUE" && purchase.chequeNumber && (
+                      <div className="flex justify-between gap-4">
+                        <dt>Cheque No.</dt>
+                        <dd>{purchase.chequeNumber}</dd>
+                      </div>
+                    )}
+                    {purchase.paymentMode !== "CASH" && (
+                      <div className="flex justify-between gap-4">
+                        <dt>
+                          {purchase.paymentMode === "CHEQUE"
+                            ? "Cheque Due Date"
+                            : "Pay By Date"}
+                        </dt>
+                        <dd>{formatDate(purchase.dueDate)}</dd>
+                      </div>
+                    )}
                     <div className="flex justify-between gap-4">
                       <dt>Type</dt>
                       <dd>{purchase.purchaseType}</dd>

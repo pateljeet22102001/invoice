@@ -15,6 +15,7 @@ import { requireBusiness } from "@/lib/session";
 import { splitGstTax } from "@/lib/gst";
 import { roundQuantity } from "@/lib/constants/product-units";
 import { findOrCreateProductForPurchase } from "@/lib/products/ensure-product";
+import { findOrCreateSupplierForPurchase } from "@/lib/suppliers/ensure-supplier";
 import { getField, getNumber, type FormState } from "@/lib/form";
 
 type PurchaseLineInput = {
@@ -173,26 +174,63 @@ export async function createPurchaseAction(
 ): Promise<FormState> {
   const { businessId, userName } = await requireBusiness();
 
-  const supplierId = getField(formData, "supplierId");
+  const supplierIdRaw = getField(formData, "supplierId");
+  const newSupplierName = getField(formData, "newSupplierName");
+  const newSupplierVillage = getField(formData, "newSupplierVillage");
   const purchaseType = getField(formData, "purchaseType") || "B2B";
   const commissionAgentId = getField(formData, "commissionAgentId");
   const commissionRateRaw = getField(formData, "commissionRate");
   const billDateRaw = getField(formData, "billDate");
   const dueDateRaw = getField(formData, "dueDate");
+  const paymentMode = getField(formData, "paymentMode") || "CASH";
+  const chequeNumber = getField(formData, "chequeNumber");
   const status = getField(formData, "status") || "RECEIVED";
   const notes = getField(formData, "notes");
   const items = parseItems(getField(formData, "items"));
 
-  if (!supplierId) {
-    return { error: "Please select a supplier." };
-  }
-
-  if (!billDateRaw || !dueDateRaw) {
-    return { error: "Bill date and due date are required." };
-  }
-
   if (!items || items.length === 0) {
     return { error: "Add at least one product line to the purchase bill." };
+  }
+
+  const business = await prisma.business.findUnique({
+    where: { id: businessId },
+    select: { state: true, gstin: true, commissionRate: true, businessType: true },
+  });
+
+  if (!business) {
+    return { error: "Business profile not found." };
+  }
+
+  const inlineSupplierAllowed = ["FARMER", "UNREGISTERED", "APMC_MANDI"].includes(
+    purchaseType,
+  );
+
+  let supplierId = supplierIdRaw;
+
+  if (newSupplierName.trim()) {
+    if (!inlineSupplierAllowed) {
+      return {
+        error: "Type a new party name only for farmer or unregistered purchases.",
+      };
+    }
+
+    try {
+      supplierId = await findOrCreateSupplierForPurchase(prisma, businessId, {
+        name: newSupplierName,
+        purchaseType,
+        state: business.state,
+        village: newSupplierVillage || undefined,
+      });
+    } catch (error) {
+      if (error instanceof Error) {
+        return { error: error.message };
+      }
+      return { error: "Could not save farmer or supplier name." };
+    }
+  }
+
+  if (!supplierId) {
+    return { error: "Select or type farmer / supplier name." };
   }
 
   const supplier = (await getSupplierDb(prisma).findFirst({
@@ -208,22 +246,42 @@ export async function createPurchaseAction(
     return { error: "Selected supplier was not found." };
   }
 
-  const business = await prisma.business.findUnique({
-    where: { id: businessId },
-    select: { state: true, gstin: true, commissionRate: true, businessType: true },
-  });
-
-  if (!business) {
-    return { error: "Business profile not found." };
-  }
-
   const businessType = business.businessType ?? "GENERAL_TRADING";
 
-  const billDate = new Date(billDateRaw);
-  const dueDate = new Date(dueDateRaw);
+  if (!billDateRaw) {
+    return { error: "Bill date is required." };
+  }
 
-  if (Number.isNaN(billDate.getTime()) || Number.isNaN(dueDate.getTime())) {
-    return { error: "Enter valid dates." };
+  const billDate = new Date(billDateRaw);
+  if (Number.isNaN(billDate.getTime())) {
+    return { error: "Enter a valid bill date." };
+  }
+
+  let dueDate: Date;
+
+  if (paymentMode === "CASH") {
+    dueDate = billDate;
+  } else if (paymentMode === "CHEQUE") {
+    if (!chequeNumber.trim()) {
+      return { error: "Enter cheque number." };
+    }
+    if (!dueDateRaw) {
+      return { error: "Enter cheque due date." };
+    }
+    dueDate = new Date(dueDateRaw);
+    if (Number.isNaN(dueDate.getTime())) {
+      return { error: "Enter a valid cheque due date." };
+    }
+  } else if (paymentMode === "CREDIT") {
+    if (!dueDateRaw) {
+      return { error: "Enter pay-by date for credit." };
+    }
+    dueDate = new Date(dueDateRaw);
+    if (Number.isNaN(dueDate.getTime())) {
+      return { error: "Enter a valid pay-by date." };
+    }
+  } else {
+    return { error: "Select a payment mode." };
   }
 
   let subtotal = 0;
@@ -386,6 +444,9 @@ export async function createPurchaseAction(
           commissionRate: purchaseType === "APMC_MANDI" ? commissionRate : undefined,
           commissionAmount,
           status: status as "DRAFT" | "RECEIVED" | "PAID" | "CANCELLED",
+          paymentMode: paymentMode as "CASH" | "CHEQUE" | "CREDIT",
+          chequeNumber:
+            paymentMode === "CHEQUE" ? chequeNumber.trim() : undefined,
           billDate,
           dueDate,
           subtotal,
@@ -429,6 +490,7 @@ export async function createPurchaseAction(
   revalidatePath("/inventory");
   revalidatePath("/products");
   revalidatePath("/dashboard");
+  revalidatePath("/suppliers");
   revalidatePath("/khata");
   revalidatePath("/accounting");
   revalidatePath("/accounting/journals");
@@ -516,6 +578,7 @@ export async function updatePurchaseAction(
   revalidatePath(`/purchases/${purchaseId}`);
   revalidatePath("/inventory");
   revalidatePath("/products");
+  revalidatePath("/suppliers");
   revalidatePath("/khata");
   revalidatePath("/accounting");
   revalidatePath("/accounting/journals");
@@ -572,6 +635,7 @@ export async function deletePurchaseAction(
   revalidatePath("/purchases");
   revalidatePath("/inventory");
   revalidatePath("/products");
+  revalidatePath("/suppliers");
   revalidatePath("/khata");
   revalidatePath("/accounting");
   revalidatePath("/accounting/journals");

@@ -43,7 +43,7 @@ export default async function NewPurchasePage() {
       <PageShell>
         <FormCard
           title="Purchase details"
-          description="Farmer, APMC market, or trader. A new item name on the line is saved to your item list."
+          description="Farmer, APMC market, or trader. New farmer and item names on this bill are saved automatically."
         >
           <PurchaseForm
             businessState={business?.state ?? null}

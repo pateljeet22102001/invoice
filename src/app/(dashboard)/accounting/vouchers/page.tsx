@@ -73,7 +73,7 @@ export default async function VouchersPage() {
           })}
         </div>
 
-        <div className="mt-8 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="mt-8 overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-200 px-6 py-4">
             <h2 className="text-lg font-semibold text-slate-900">Recent Vouchers</h2>
             <p className="text-sm text-slate-500">

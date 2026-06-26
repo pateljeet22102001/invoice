@@ -63,6 +63,12 @@ enum PurchaseStatus {
   CANCELLED
 }
 
+enum PurchasePaymentMode {
+  CASH
+  CHEQUE
+  CREDIT
+}
+
 enum SupplierType {
   B2B_SUPPLIER
   FARMER
@@ -299,6 +305,8 @@ model PurchaseBill {
   commissionRate    Float?
   commissionAmount  Float          @default(0)
   status            PurchaseStatus @default(RECEIVED)
+  paymentMode       PurchasePaymentMode @default(CASH)
+  chequeNumber      String?
   billDate        DateTime       @default(now())
   dueDate         DateTime
   subtotal        Float          @default(0)

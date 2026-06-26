@@ -30,12 +30,12 @@ export default function HomePage() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-6 pb-20 pt-16">
+      <main className="mx-auto max-w-6xl px-4 pb-20 pt-12 sm:px-6 sm:pt-16">
         <div className="max-w-3xl">
           <p className="mb-4 text-sm font-medium uppercase tracking-[0.2em] text-indigo-300">
             {BRAND.subtitle}
           </p>
-          <h1 className="text-5xl font-bold leading-tight tracking-tight">
+          <h1 className="text-3xl font-bold leading-tight tracking-tight sm:text-5xl">
             GST Billing, Stock, and Accounts — All in One Place
           </h1>
           <p className="mt-6 text-lg leading-8 text-slate-300">

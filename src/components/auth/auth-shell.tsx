@@ -42,7 +42,7 @@ export function AuthShell({
         <p className="text-xs text-slate-400">© 2026 {BRAND.fullName}</p>
       </div>
 
-      <div className="flex w-full flex-col justify-center px-6 py-12 lg:w-1/2 lg:px-16">
+      <div className="flex w-full flex-col justify-center px-4 py-8 sm:px-6 sm:py-12 lg:w-1/2 lg:px-16">
         <div className="mx-auto w-full max-w-md">
           <div className="mb-8 lg:hidden">
             <p className="text-lg font-semibold text-slate-900">{BRAND.fullName}</p>

@@ -29,7 +29,7 @@ export default async function JournalsPage() {
         }
       />
       <PageShell>
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
           {entries.length === 0 ? (
             <p className="px-6 py-8 text-center text-sm text-slate-500">
               No journal entries yet. Post an invoice or create a manual journal.
