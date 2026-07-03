@@ -1,7 +1,7 @@
-import { Header } from "@/components/layout/header";
+import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import { PageShell } from "@/app/(dashboard)/layout";
 import { PurchaseForm, type PurchaseSupplierOption } from "@/components/forms/purchase-form";
-import { FormCard } from "@/components/forms/form-fields";
 import { getSupplierDb } from "@/lib/prisma-purchase";
 import { prisma } from "@/lib/prisma";
 import { requireBusiness } from "@/lib/session";
@@ -14,7 +14,13 @@ export default async function NewPurchasePage() {
   const [business, suppliers, products] = await Promise.all([
     prisma.business.findUnique({
       where: { id: businessId },
-      select: { state: true, gstin: true, commissionRate: true },
+      select: {
+        state: true,
+        gstin: true,
+        commissionRate: true,
+        name: true,
+        apmcMarketName: true,
+      },
     }),
     getSupplierDb(prisma).findMany({
       where: { businessId },
@@ -22,6 +28,7 @@ export default async function NewPurchasePage() {
         id: true,
         name: true,
         state: true,
+        village: true,
         gstin: true,
         supplierType: true,
       },
@@ -35,33 +42,42 @@ export default async function NewPurchasePage() {
   ]);
 
   return (
-    <>
-      <Header
-        title="Purchase Stock — Purchase Bill"
-        description="Type item name here. Stock + item list update together — like Tally purchase."
-      />
-      <PageShell>
-        <FormCard
-          title="Purchase details"
-          description="Farmer, APMC market, or trader. New farmer and item names on this bill are saved automatically."
-        >
-          <PurchaseForm
-            businessState={business?.state ?? null}
-            businessGstin={business?.gstin ?? null}
-            defaultCommissionRate={business?.commissionRate ?? 2.5}
-            suppliers={suppliers}
-            products={products.map((product) => ({
-              id: product.id,
-              name: product.name,
-              sku: product.sku,
-              costPrice: product.costPrice,
-              unit: product.unit,
-              gstRate: product.gstRate,
-              stock: product.inventory?.quantity ?? 0,
-            }))}
-          />
-        </FormCard>
-      </PageShell>
-    </>
+    <PageShell>
+      <div className="mx-auto max-w-4xl">
+        <div className="mb-6 flex items-center gap-4">
+          <Link
+            href="/purchases"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-stone-200/80 bg-white text-stone-600 shadow-sm transition hover:border-stone-300 hover:bg-stone-50 hover:text-stone-900"
+            aria-label="Back to purchases"
+          >
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight text-stone-900">
+              Purchase Bill
+            </h1>
+            <p className="mt-0.5 text-sm text-stone-500">{business?.name}</p>
+          </div>
+        </div>
+
+        <PurchaseForm
+          businessName={business?.name ?? ""}
+          apmcMarketName={business?.apmcMarketName ?? null}
+          businessState={business?.state ?? null}
+          businessGstin={business?.gstin ?? null}
+          suppliers={suppliers}
+          products={products.map((product) => ({
+            id: product.id,
+            name: product.name,
+            sku: product.sku,
+            costPrice: product.costPrice,
+            unit: product.unit,
+            gstRate: product.gstRate,
+            hsnCode: product.hsnCode,
+            stock: product.inventory?.quantity ?? 0,
+          }))}
+        />
+      </div>
+    </PageShell>
   );
 }

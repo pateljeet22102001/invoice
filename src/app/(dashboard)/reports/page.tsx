@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Header } from "@/components/layout/header";
 import { PageShell } from "@/app/(dashboard)/layout";
 import { Gstr1ExportPanel } from "@/components/reports/gstr1-export-panel";
+import { Gstr2bExportPanel } from "@/components/reports/gstr2b-export-panel";
 import { getGstReportData } from "@/lib/gst-reports";
 import { requireBusiness } from "@/lib/session";
 import { formatCurrency, formatDate } from "@/lib/utils";
@@ -24,8 +25,9 @@ export default async function GstReportsPage() {
         description="Sales summary with CGST, SGST & IGST breakdown (India GST rules)"
       />
       <PageShell>
-        <div className="mb-6">
+        <div className="mb-6 grid gap-6 lg:grid-cols-2">
           <Gstr1ExportPanel defaultPeriod={currentPeriod()} />
+          <Gstr2bExportPanel defaultPeriod={currentPeriod()} />
         </div>
         <div className="mb-6 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-3 text-sm text-indigo-900">
           <p className="font-medium">How tax is calculated</p>

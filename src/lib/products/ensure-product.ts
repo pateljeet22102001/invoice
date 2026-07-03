@@ -37,6 +37,7 @@ export async function findOrCreateProductForPurchase(
       data: {
         costPrice: input.unitCost,
         unitPrice: input.unitPrice,
+        ...(input.hsnCode?.trim() ? { hsnCode: input.hsnCode.trim() } : {}),
       },
     });
     return existing.id;
@@ -53,7 +54,7 @@ export async function findOrCreateProductForPurchase(
       unit,
       unitPrice: input.unitPrice,
       costPrice: input.unitCost,
-      gstRate: input.gstRate ?? 5,
+      gstRate: input.gstRate ?? 0,
       hsnCode: input.hsnCode ?? (unit === "kg" ? "2401" : undefined),
       inventory: {
         create: {

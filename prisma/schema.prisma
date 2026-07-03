@@ -297,6 +297,8 @@ model PurchaseBill {
   businessId      String
   business        Business       @relation(fields: [businessId], references: [id], onDelete: Cascade)
   purchaseNumber  String
+  supplierInvoiceNo String?
+  commissionAgentInvoiceNo String?
   purchaseType      PurchaseType   @default(B2B)
   supplierId        String
   supplier          Supplier       @relation("PurchaseSupplier", fields: [supplierId], references: [id])

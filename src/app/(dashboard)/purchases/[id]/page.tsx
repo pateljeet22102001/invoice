@@ -3,6 +3,7 @@ import { Header } from "@/components/layout/header";
 import { PageShell } from "@/app/(dashboard)/layout";
 import { PurchaseStatusForm } from "@/components/forms/purchase-status-form";
 import { FormCard } from "@/components/forms/form-fields";
+import { PurchasePrintActions } from "@/components/purchases/purchase-print-actions";
 import { purchaseTypeLabel } from "@/lib/constants/supplier-types";
 import { purchasePaymentModeLabel } from "@/lib/constants/payment-modes";
 import { getPurchaseDetail } from "@/lib/purchases";
@@ -53,12 +54,18 @@ export default async function PurchaseDetailPage({
         title={purchase.purchaseNumber}
         description={`Purchase from ${purchase.supplier.name}`}
         action={
-          <Link
-            href="/purchases"
-            className="inline-flex items-center justify-center rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-          >
-            Back to Purchases
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            <PurchasePrintActions
+              purchaseId={purchase.id}
+              purchaseNumber={purchase.purchaseNumber}
+            />
+            <Link
+              href="/purchases"
+              className="inline-flex items-center justify-center rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+            >
+              Back to Purchases
+            </Link>
+          </div>
         }
       />
       <PageShell>
@@ -96,7 +103,11 @@ export default async function PurchaseDetailPage({
               <div className="mt-8 grid gap-6 sm:grid-cols-2">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    Supplier
+                    {purchase.purchaseType === "APMC_MANDI"
+                      ? "Seller at mandi"
+                      : purchase.purchaseType === "FARMER"
+                        ? "Farmer"
+                        : "Supplier"}
                   </p>
                   <p className="mt-2 font-medium text-slate-900">
                     {purchase.supplier.name}
@@ -116,6 +127,12 @@ export default async function PurchaseDetailPage({
                       {purchase.supplier.village}
                     </p>
                   )}
+                  {purchase.purchaseType === "APMC_MANDI" && (
+                      <p className="text-sm text-slate-600">
+                        Mandi:{" "}
+                        {purchase.business.apmcMarketName || purchase.business.name}
+                      </p>
+                    )}
                   {purchase.supplier.phone && (
                     <p className="text-sm text-slate-600">
                       {purchase.supplier.phone}
@@ -131,6 +148,22 @@ export default async function PurchaseDetailPage({
                       <dt>Bill Date</dt>
                       <dd>{formatDate(purchase.billDate)}</dd>
                     </div>
+                    {purchase.supplierInvoiceNo && (
+                      <div className="flex justify-between gap-4">
+                        <dt>
+                          {purchase.purchaseType === "APMC_MANDI"
+                            ? "Seller / Mandi Slip No."
+                            : "Supplier GST Bill No."}
+                        </dt>
+                        <dd>{purchase.supplierInvoiceNo}</dd>
+                      </div>
+                    )}
+                    {purchase.commissionAgentInvoiceNo && (
+                      <div className="flex justify-between gap-4">
+                        <dt>Agent GST Bill No.</dt>
+                        <dd>{purchase.commissionAgentInvoiceNo}</dd>
+                      </div>
+                    )}
                     <div className="flex justify-between gap-4">
                       <dt>Payment</dt>
                       <dd>{purchasePaymentModeLabel(purchase.paymentMode ?? "CASH")}</dd>

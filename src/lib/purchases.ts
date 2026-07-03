@@ -12,7 +12,7 @@ export async function getPurchaseDetail(
     include: {
       supplier: true,
       commissionAgent: true,
-      items: { include: { product: true } },
+      items: { include: { product: { select: { id: true, name: true, sku: true, hsnCode: true, unit: true } } } },
       business: true,
     },
   })) as PurchaseDetail | null;

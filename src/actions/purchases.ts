@@ -9,6 +9,7 @@ import {
   shouldPostPurchaseJournal,
 } from "@/lib/accounting/journal";
 import { AUDIT_ACTIONS, logAuditEvent } from "@/lib/accounting/audit-log";
+import { ensureChartOfAccounts } from "@/lib/accounting/chart-of-accounts";
 import { getPurchaseDb, getSupplierDb } from "@/lib/prisma-purchase";
 import { prisma } from "@/lib/prisma";
 import { requireBusiness } from "@/lib/session";
@@ -16,6 +17,7 @@ import { splitGstTax } from "@/lib/gst";
 import { roundQuantity } from "@/lib/constants/product-units";
 import { findOrCreateProductForPurchase } from "@/lib/products/ensure-product";
 import { findOrCreateSupplierForPurchase } from "@/lib/suppliers/ensure-supplier";
+import { defaultGstForPurchaseType } from "@/lib/constants/purchase-gst";
 import { getField, getNumber, type FormState } from "@/lib/form";
 
 type PurchaseLineInput = {
@@ -23,6 +25,7 @@ type PurchaseLineInput = {
   newProductName?: string;
   unitPrice?: number;
   gstRate?: number;
+  hsnCode?: string;
   quantity: number;
   unitCost: number;
 };
@@ -33,7 +36,7 @@ function parseItems(raw: string): PurchaseLineInput[] | null {
     if (!Array.isArray(parsed) || parsed.length === 0) return null;
     return parsed.filter((item) => {
       if (typeof item.quantity !== "number" || item.quantity <= 0) return false;
-      if (typeof item.unitCost !== "number" || item.unitCost < 0) return false;
+      if (typeof item.unitCost !== "number" || item.unitCost <= 0) return false;
       const hasProduct = typeof item.productId === "string" && item.productId.length > 0;
       const hasNewName =
         typeof item.newProductName === "string" && item.newProductName.trim().length > 0;
@@ -177,6 +180,8 @@ export async function createPurchaseAction(
   const supplierIdRaw = getField(formData, "supplierId");
   const newSupplierName = getField(formData, "newSupplierName");
   const newSupplierVillage = getField(formData, "newSupplierVillage");
+  const supplierInvoiceNo = getField(formData, "supplierInvoiceNo");
+  const commissionAgentInvoiceNo = getField(formData, "commissionAgentInvoiceNo");
   const purchaseType = getField(formData, "purchaseType") || "B2B";
   const commissionAgentId = getField(formData, "commissionAgentId");
   const commissionRateRaw = getField(formData, "commissionRate");
@@ -189,8 +194,13 @@ export async function createPurchaseAction(
   const items = parseItems(getField(formData, "items"));
 
   if (!items || items.length === 0) {
-    return { error: "Add at least one product line to the purchase bill." };
+    return {
+      error:
+        "Add at least one item with quantity and rate greater than zero.",
+    };
   }
+
+  await ensureChartOfAccounts(businessId);
 
   const business = await prisma.business.findUnique({
     where: { id: businessId },
@@ -313,6 +323,7 @@ export async function createPurchaseAction(
           name: string;
           unit: string;
           gstRate: number;
+          hsnCode: string | null;
         } | null = null;
 
         if (item.newProductName?.trim()) {
@@ -324,7 +335,8 @@ export async function createPurchaseAction(
             name: item.newProductName.trim(),
             unitCost: item.unitCost,
             unitPrice: saleRate,
-            gstRate: item.gstRate ?? 5,
+            gstRate: item.gstRate ?? defaultGstForPurchaseType(purchaseType),
+            hsnCode: item.hsnCode?.trim() || undefined,
             unit: "kg",
           });
         }
@@ -335,16 +347,24 @@ export async function createPurchaseAction(
 
         product = await tx.product.findFirst({
           where: { id: productId, businessId },
-          select: { id: true, name: true, unit: true, gstRate: true },
+          select: { id: true, name: true, unit: true, gstRate: true, hsnCode: true },
         });
 
         if (!product) {
           throw new Error("One or more items are invalid.");
         }
 
+        if (item.hsnCode?.trim() && item.hsnCode.trim() !== product.hsnCode) {
+          await tx.product.update({
+            where: { id: product.id },
+            data: { hsnCode: item.hsnCode.trim() },
+          });
+        }
+
         const quantity = roundQuantity(item.quantity, product.unit);
         const unitCost = Math.round(item.unitCost * 100) / 100;
-        const effectiveGstRate = item.gstRate ?? product.gstRate;
+        const effectiveGstRate =
+          item.gstRate ?? product.gstRate ?? defaultGstForPurchaseType(purchaseType);
 
         resolvedItems.push({
           productId: product.id,
@@ -386,37 +406,18 @@ export async function createPurchaseAction(
     };
   }
 
-  let commissionAgent: { id: string } | null = null;
+  if (purchaseType === "B2B" && !supplierInvoiceNo.trim()) {
+    return {
+      error: "Enter supplier GST bill / invoice number (from their tax invoice).",
+    };
+  }
+
   let commissionRate = 0;
   let commissionAmount = 0;
 
   if (purchaseType === "APMC_MANDI") {
-    if (!commissionAgentId) {
-      return { error: "Select APMC commission agent for market purchase." };
-    }
-
-    commissionAgent = (await getSupplierDb(prisma).findFirst({
-      where: { id: commissionAgentId, businessId, supplierType: "APMC_AGENT" },
-      select: { id: true },
-    })) as { id: string } | null;
-
-    if (!commissionAgent) {
-      return {
-        error: "Commission agent not found. Add an APMC agent in Suppliers first.",
-      };
-    }
-
-    commissionRate = commissionRateRaw
-      ? getNumber(formData, "commissionRate")
-      : business.commissionRate ?? 0;
-
-    if (!Number.isFinite(commissionRate) || commissionRate < 0 || commissionRate > 100) {
-      return { error: "Enter a valid commission rate (0–100%)." };
-    }
-  }
-
-  if (purchaseType === "APMC_MANDI" && subtotal > 0 && commissionRate > 0) {
-    commissionAmount = Math.round(subtotal * (commissionRate / 100) * 100) / 100;
+    commissionRate = 0;
+    commissionAmount = 0;
   }
 
   const total = subtotal + taxAmount + commissionAmount;
@@ -433,16 +434,21 @@ export async function createPurchaseAction(
   let createdPurchaseId = "";
 
   try {
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(
+      async (tx) => {
       const purchase = (await getPurchaseDb(tx).create({
         data: {
           businessId,
           purchaseNumber,
+          supplierInvoiceNo: supplierInvoiceNo.trim() || undefined,
+          commissionAgentInvoiceNo:
+            purchaseType === "APMC_MANDI"
+              ? undefined
+              : commissionAgentInvoiceNo.trim() || undefined,
           purchaseType: purchaseType as "B2B" | "FARMER" | "UNREGISTERED" | "APMC_MANDI",
           supplierId,
-          commissionAgentId: commissionAgent?.id ?? undefined,
-          commissionRate: purchaseType === "APMC_MANDI" ? commissionRate : undefined,
-          commissionAmount,
+          commissionRate: purchaseType === "APMC_MANDI" ? undefined : commissionRate,
+          commissionAmount: purchaseType === "APMC_MANDI" ? undefined : commissionAmount,
           status: status as "DRAFT" | "RECEIVED" | "PAID" | "CANCELLED",
           paymentMode: paymentMode as "CASH" | "CHEQUE" | "CREDIT",
           chequeNumber:
@@ -480,9 +486,20 @@ export async function createPurchaseAction(
         details: { status, total: purchase.total, purchaseType },
         performedBy: userName,
       });
-    });
+      },
+      { maxWait: 10_000, timeout: 30_000 },
+    );
   } catch (error) {
     console.error(error);
+    if (error instanceof Error) {
+      if (error.message.includes("Transaction not found") || error.message.includes("timed out")) {
+        return {
+          error:
+            "Save timed out while posting accounts. Please try again — your data is fine.",
+        };
+      }
+      return { error: error.message };
+    }
     return { error: "Could not create purchase bill. Please try again." };
   }
 

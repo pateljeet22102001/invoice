@@ -154,7 +154,7 @@ export function FormSubmitButton({
       type="submit"
       disabled={pending}
       className={cn(
-        "rounded-lg bg-indigo-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-indigo-500",
+        "rounded-md bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800",
         pending && "cursor-not-allowed opacity-70",
         className,
       )}
@@ -174,11 +174,13 @@ export function FormActions({
   submitLabel: string;
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-3 border-t border-slate-200 pt-6">
-      <FormSubmitButton pending={pending}>{submitLabel}</FormSubmitButton>
+    <div className="flex flex-wrap items-center gap-3 border-t border-slate-200 pt-4">
+      <FormSubmitButton pending={pending} className="w-full sm:w-auto">
+        {submitLabel}
+      </FormSubmitButton>
       <Link
         href={cancelHref}
-        className="rounded-lg border border-slate-300 px-5 py-2.5 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+        className="w-full rounded-md border border-slate-200 px-5 py-2.5 text-center text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50 sm:w-auto"
       >
         Cancel
       </Link>

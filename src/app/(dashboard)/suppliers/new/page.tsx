@@ -13,7 +13,7 @@ export default function NewSupplierPage() {
       <PageShell>
         <FormCard
           title="Supplier Details"
-          description="GSTIN required for B2B suppliers. Farmers can use PAN or village instead."
+          description="Fields change by type — B2B needs GSTIN only; farmers need name and village."
         >
           <SupplierForm />
         </FormCard>

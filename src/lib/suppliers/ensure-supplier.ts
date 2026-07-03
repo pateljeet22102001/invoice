@@ -11,7 +11,7 @@ type EnsureSupplierInput = {
 function supplierTypeForPurchase(purchaseType: string) {
   if (purchaseType === "FARMER") return "FARMER" as const;
   if (purchaseType === "UNREGISTERED") return "UNREGISTERED" as const;
-  if (purchaseType === "APMC_MANDI") return "FARMER" as const;
+  if (purchaseType === "APMC_MANDI") return "UNREGISTERED" as const;
   return "OTHER" as const;
 }
 

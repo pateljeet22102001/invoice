@@ -45,5 +45,38 @@ export async function updateBusinessTypeAction(
   revalidatePath("/products");
   revalidatePath("/products/new");
 
-  return { error: undefined };
+  return {};
+}
+
+export async function updateBusinessProfileAction(
+  _prevState: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const { businessId } = await requireBusiness();
+
+  const tradeName = getField(formData, "tradeName");
+  const phone = getField(formData, "phone");
+  const address = getField(formData, "address");
+  const city = getField(formData, "city");
+  const state = getField(formData, "state");
+  const pincode = getField(formData, "pincode");
+  const apmcMarketName = getField(formData, "apmcMarketName");
+
+  await prisma.business.update({
+    where: { id: businessId },
+    data: {
+      tradeName: tradeName || null,
+      phone: phone || null,
+      address: address || null,
+      city: city || null,
+      state: state || null,
+      pincode: pincode || null,
+      apmcMarketName: apmcMarketName || null,
+    },
+  });
+
+  revalidatePath("/settings");
+  revalidatePath("/purchases");
+
+  return {};
 }

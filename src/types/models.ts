@@ -206,6 +206,8 @@ export interface PurchaseBill {
   id: string;
   businessId: string;
   purchaseNumber: string;
+  supplierInvoiceNo: string | null;
+  commissionAgentInvoiceNo: string | null;
   purchaseType: PurchaseType;
   supplierId: string;
   commissionAgentId: string | null;
@@ -238,7 +240,7 @@ export interface PurchaseItem {
   unitCost: number;
   gstRate: number;
   total: number;
-  product: Pick<Product, "id" | "name" | "sku" | "hsnCode"> | null;
+  product: Pick<Product, "id" | "name" | "sku" | "hsnCode" | "unit"> | null;
 }
 
 export type SupplierWithPurchaseCount = Supplier & {

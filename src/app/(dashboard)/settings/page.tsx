@@ -1,6 +1,7 @@
 import { Header } from "@/components/layout/header";
 import { PageShell } from "@/app/(dashboard)/layout";
 import { BusinessTypeForm } from "@/components/forms/business-type-form";
+import { BusinessProfileForm } from "@/components/forms/business-profile-form";
 import { prisma } from "@/lib/prisma";
 import { requireBusiness } from "@/lib/session";
 import { getBusinessTypeLabel } from "@/lib/constants/business-types";
@@ -144,6 +145,16 @@ export default async function SettingsPage() {
                 </dd>
               </div>
             </dl>
+
+            <BusinessProfileForm
+              tradeName={business?.tradeName}
+              phone={business?.phone}
+              address={business?.address}
+              city={business?.city}
+              state={business?.state}
+              pincode={business?.pincode}
+              apmcMarketName={business?.apmcMarketName}
+            />
 
             <BusinessTypeForm
               businessType={business?.businessType ?? "GENERAL_TRADING"}

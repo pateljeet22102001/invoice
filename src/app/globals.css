@@ -19,7 +19,16 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* List tables scroll horizontally on small screens instead of squashing */
+/* Hide number input spinners in voucher forms */
+.no-spinner::-webkit-outer-spin-button,
+.no-spinner::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.no-spinner {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
 @media (max-width: 1023px) {
   main table.min-w-full {
     min-width: 36rem;
