@@ -111,7 +111,7 @@ function inlinePartySuppliers(
   return farmerPartySuppliers(suppliers);
 }
 
-const INLINE_SUPPLIER_PURCHASE_TYPES = ["FARMER", "UNREGISTERED", "APMC_MANDI"] as const;
+const INLINE_SUPPLIER_PURCHASE_TYPES = ["FARMER", "UNREGISTERED"] as const;
 
 const initialState: FormState = {};
 
@@ -203,17 +203,15 @@ function FormSection({
 export function PurchaseForm({
   suppliers,
   products,
-  businessName,
-  apmcMarketName,
   businessState,
   businessGstin,
+  defaultCommissionRate = 2.5,
 }: {
   suppliers: PurchaseSupplierOption[];
   products: PurchaseProductOption[];
-  businessName: string;
-  apmcMarketName: string | null;
   businessState: string | null;
   businessGstin: string | null;
+  defaultCommissionRate?: number;
 }) {
   const [state, formAction, pending] = useActionState(
     createPurchaseAction,
@@ -232,6 +230,10 @@ export function PurchaseForm({
   const [supplierInvoiceNo, setSupplierInvoiceNo] = useState("");
   const [chequeNumber, setChequeNumber] = useState("");
   const [payByDate, setPayByDate] = useState(dueDateString());
+  const [mandiOwnerName, setMandiOwnerName] = useState("");
+  const [mandiShopNo, setMandiShopNo] = useState("");
+  const [mandiGstin, setMandiGstin] = useState("");
+  const [commissionRate, setCommissionRate] = useState(String(defaultCommissionRate));
   const [showGstColumn, setShowGstColumn] = useState(false);
   const [openItemLineId, setOpenItemLineId] = useState<string | null>(null);
 
@@ -240,7 +242,7 @@ export function PurchaseForm({
   const isApmcMandi = purchaseType === "APMC_MANDI";
   const needsB2bGstBill = purchaseType === "B2B";
   const needsGstBill = needsB2bGstBill;
-  const displayMandiName = apmcMarketName?.trim() || businessName;
+
   const simplePaymentFlow =
     purchaseType === "FARMER" ||
     purchaseType === "UNREGISTERED" ||
@@ -249,23 +251,18 @@ export function PurchaseForm({
     purchaseType as (typeof INLINE_SUPPLIER_PURCHASE_TYPES)[number],
   );
 
-  const supplierFieldLabel = isApmcMandi
-    ? "Seller (trading co / farmer)"
-    : purchaseType === "FARMER"
+  const supplierFieldLabel =
+    purchaseType === "FARMER"
       ? "Farmer"
       : purchaseType === "UNREGISTERED"
         ? "Farmer / party (contract)"
         : "Supplier";
 
-  const partyNamePlaceholder = isApmcMandi
-    ? "e.g. Saraswati Trading Co, farmer name"
-    : purchaseType === "UNREGISTERED"
-      ? "Party / trader name"
-      : "Farmer name";
+  const partyNamePlaceholder =
+    purchaseType === "UNREGISTERED" ? "Party / trader name" : "Farmer name";
 
-  const partyLocationPlaceholder = isApmcMandi
-    ? "Market / city (optional)"
-    : "Village";
+  const partyLocationPlaceholder =
+    purchaseType === "UNREGISTERED" ? "Location / area" : "Village";
 
   const partySuppliers = useMemo(
     () =>
@@ -335,16 +332,24 @@ export function PurchaseForm({
     const gstSplit = splitGstTax(
       taxAmount,
       businessState,
-      activeParty?.state,
+      isApmcMandi ? undefined : activeParty?.state,
       businessGstin,
-      activeParty?.gstin,
+      isApmcMandi ? mandiGstin || undefined : activeParty?.gstin,
     );
 
     return {
       subtotal,
       taxAmount,
-      commissionAmount: 0,
-      total: subtotal + taxAmount,
+      commissionAmount:
+        isApmcMandi && subtotal > 0
+          ? Math.round(subtotal * ((Number(commissionRate) || 0) / 100) * 100) / 100
+          : 0,
+      total:
+        subtotal +
+        taxAmount +
+        (isApmcMandi && subtotal > 0
+          ? Math.round(subtotal * ((Number(commissionRate) || 0) / 100) * 100) / 100
+          : 0),
       ...gstSplit,
     };
   }, [
@@ -355,6 +360,9 @@ export function PurchaseForm({
     activeParty?.state,
     activeParty?.gstin,
     purchaseType,
+    commissionRate,
+    isApmcMandi,
+    mandiGstin,
   ]);
 
   const itemsJson = JSON.stringify(
@@ -448,6 +456,11 @@ export function PurchaseForm({
       setShowGstColumn(true);
     } else {
       setShowGstColumn(false);
+    }
+    if (nextType === "APMC_MANDI") {
+      setMandiOwnerName("");
+      setMandiShopNo("");
+      setMandiGstin("");
     }
     setBillStatus("RECEIVED");
     setLines((current) =>
@@ -858,16 +871,14 @@ export function PurchaseForm({
         <FormSection
           icon={FileText}
           title="Bill details"
-          description={
-            isApmcMandi
-              ? "Direct mandi purchase at your market"
-              : "Type, party, and date for this purchase"
-          }
+          description="Farmer bill · Mandi bill · or B2B bill"
         >
           <div className="grid grid-cols-1 gap-5 lg:grid-cols-12 lg:items-start">
-            <div className="lg:col-span-4">{renderBillTypeField()}</div>
-            <div className="lg:col-span-5">{renderSupplierField()}</div>
-            <div className="lg:col-span-3">
+            <div className={isApmcMandi ? "lg:col-span-6" : "lg:col-span-4"}>
+              {renderBillTypeField()}
+            </div>
+            {!isApmcMandi && <div className="lg:col-span-5">{renderSupplierField()}</div>}
+            <div className={isApmcMandi ? "lg:col-span-6" : "lg:col-span-3"}>
               <label htmlFor="billDate" className={fieldLabel}>
                 <span className="inline-flex items-center gap-1.5">
                   <Calendar className="h-3.5 w-3.5 text-stone-400" />
@@ -886,28 +897,89 @@ export function PurchaseForm({
           </div>
 
           {isApmcMandi && (
-            <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:max-w-2xl">
-              <div className="rounded-xl border border-emerald-100 bg-emerald-50/50 px-4 py-3">
-                <p className="text-xs font-medium uppercase tracking-wide text-emerald-800">
-                  Your mandi
-                </p>
-                <p className="mt-1 text-sm font-semibold text-stone-900">{displayMandiName}</p>
-                {apmcMarketName && apmcMarketName !== businessName ? (
-                  <p className="text-xs text-stone-500">{businessName}</p>
-                ) : null}
+            <div className="mt-5 space-y-5">
+              <input type="hidden" name="apmcMandiRole" value="BUYER" />
+
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
+                <div>
+                  <label htmlFor="mandiOwnerName" className={fieldLabel}>
+                    Mandi owner name
+                  </label>
+                  <input
+                    id="mandiOwnerName"
+                    name="mandiOwnerName"
+                    required
+                    placeholder="Shop / owner name"
+                    value={mandiOwnerName}
+                    onChange={(e) => setMandiOwnerName(e.target.value)}
+                    className={inputCls}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="mandiShopNo" className={fieldLabel}>
+                    Shop number
+                  </label>
+                  <input
+                    id="mandiShopNo"
+                    name="mandiShopNo"
+                    required
+                    placeholder="Mandi shop no."
+                    value={mandiShopNo}
+                    onChange={(e) => setMandiShopNo(e.target.value)}
+                    className={inputCls}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="mandiGstin" className={fieldLabel}>
+                    GST number
+                  </label>
+                  <input
+                    id="mandiGstin"
+                    name="mandiGstin"
+                    placeholder="If agent has GSTIN"
+                    maxLength={15}
+                    value={mandiGstin}
+                    onChange={(e) => setMandiGstin(e.target.value.toUpperCase())}
+                    className={inputCls}
+                  />
+                </div>
               </div>
-              <div>
-                <label htmlFor="supplierInvoiceNo" className={fieldLabel}>
-                  Mandi slip no. (optional)
-                </label>
-                <input
-                  id="supplierInvoiceNo"
-                  name="supplierInvoiceNo"
-                  placeholder="Gate pass / seller slip"
-                  value={supplierInvoiceNo}
-                  onChange={(e) => setSupplierInvoiceNo(e.target.value)}
-                  className={inputCls}
-                />
+
+              <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+                <div>
+                  <label htmlFor="supplierInvoiceNo" className={fieldLabel}>
+                    I-Form no.
+                  </label>
+                  <input
+                    id="supplierInvoiceNo"
+                    name="supplierInvoiceNo"
+                    required
+                    placeholder="Bill number"
+                    value={supplierInvoiceNo}
+                    onChange={(e) => setSupplierInvoiceNo(e.target.value)}
+                    className={inputCls}
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="commissionRate" className={fieldLabel}>
+                    Commission %
+                  </label>
+                  <input
+                    id="commissionRate"
+                    name="commissionRate"
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="0.01"
+                    required
+                    value={commissionRate}
+                    onChange={(e) => setCommissionRate(e.target.value)}
+                    className={cn(inputCls, "no-spinner")}
+                  />
+                </div>
               </div>
             </div>
           )}

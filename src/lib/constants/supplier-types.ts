@@ -1,27 +1,24 @@
 export const SUPPLIER_TYPE_OPTIONS = [
   { value: "B2B_SUPPLIER", label: "B2B Supplier (GST registered)" },
   { value: "FARMER", label: "Farmer / Producer" },
-  { value: "APMC_AGENT", label: "APMC / Commission Agent" },
+  { value: "APMC_AGENT", label: "Commission Agent (APMC)" },
   { value: "UNREGISTERED", label: "Unregistered dealer" },
   { value: "OTHER", label: "Other" },
 ] as const;
 
 export const PURCHASE_TYPE_OPTIONS = [
   { value: "FARMER", label: "Farmer bill" },
-  { value: "UNREGISTERED", label: "Contract / trade area" },
-  { value: "APMC_MANDI", label: "APMC (mandi)" },
-  { value: "B2B", label: "B2B (GST invoice)" },
+  { value: "APMC_MANDI", label: "Mandi bill" },
+  { value: "B2B", label: "B2B bill" },
 ] as const;
 
 export const PURCHASE_TYPE_HINTS: Record<
   (typeof PURCHASE_TYPE_OPTIONS)[number]["value"],
   string
 > = {
-  FARMER: "Direct farmer purchase · raw produce · no APMC fee · usually no GST",
-  UNREGISTERED:
-    "Outside mandi (trade area / contract) · no mandi cess · usually no GST on raw produce",
-  APMC_MANDI: "Direct mandi · your shop buys at your market · seller = trading co or farmer",
-  B2B: "Registered supplier tax invoice · GSTIN · HSN · CGST/SGST or IGST",
+  FARMER: "Direct purchase from farmer",
+  APMC_MANDI: "Mandi shop name, shop no., GST — then I-Form",
+  B2B: "GST tax invoice from registered supplier",
 };
 
 export function supplierTypeLabel(value: string) {
@@ -29,5 +26,8 @@ export function supplierTypeLabel(value: string) {
 }
 
 export function purchaseTypeLabel(value: string) {
-  return PURCHASE_TYPE_OPTIONS.find((o) => o.value === value)?.label ?? value;
+  const option = PURCHASE_TYPE_OPTIONS.find((o) => o.value === value);
+  if (option) return option.label;
+  if (value === "UNREGISTERED") return "Contract / trade area";
+  return value;
 }

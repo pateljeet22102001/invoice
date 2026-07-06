@@ -198,6 +198,7 @@ export interface Supplier {
   village: string | null;
   gstin: string | null;
   pan: string | null;
+  shopLicenseNo: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -213,6 +214,8 @@ export interface PurchaseBill {
   commissionAgentId: string | null;
   commissionRate: number | null;
   commissionAmount: number;
+  apmcMarketName: string | null;
+  mandiShopNo: string | null;
   status: PurchaseStatus;
   paymentMode: PurchasePaymentMode;
   chequeNumber: string | null;

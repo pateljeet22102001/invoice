@@ -58,6 +58,7 @@ export default async function PurchaseDetailPage({
             <PurchasePrintActions
               purchaseId={purchase.id}
               purchaseNumber={purchase.purchaseNumber}
+              purchaseType={purchase.purchaseType}
             />
             <Link
               href="/purchases"
@@ -104,7 +105,7 @@ export default async function PurchaseDetailPage({
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                     {purchase.purchaseType === "APMC_MANDI"
-                      ? "Seller at mandi"
+                      ? "Mandi shop"
                       : purchase.purchaseType === "FARMER"
                         ? "Farmer"
                         : "Supplier"}
@@ -122,17 +123,16 @@ export default async function PurchaseDetailPage({
                       PAN: {purchase.supplier.pan}
                     </p>
                   )}
-                  {purchase.supplier.village && (
+                  {purchase.purchaseType === "APMC_MANDI" && purchase.mandiShopNo && (
+                    <p className="text-sm text-slate-600">
+                      Shop no.: {purchase.mandiShopNo}
+                    </p>
+                  )}
+                  {purchase.purchaseType !== "APMC_MANDI" && purchase.supplier.village && (
                     <p className="text-sm text-slate-600">
                       {purchase.supplier.village}
                     </p>
                   )}
-                  {purchase.purchaseType === "APMC_MANDI" && (
-                      <p className="text-sm text-slate-600">
-                        Mandi:{" "}
-                        {purchase.business.apmcMarketName || purchase.business.name}
-                      </p>
-                    )}
                   {purchase.supplier.phone && (
                     <p className="text-sm text-slate-600">
                       {purchase.supplier.phone}
@@ -152,16 +152,10 @@ export default async function PurchaseDetailPage({
                       <div className="flex justify-between gap-4">
                         <dt>
                           {purchase.purchaseType === "APMC_MANDI"
-                            ? "Seller / Mandi Slip No."
+                            ? "I-Form No."
                             : "Supplier GST Bill No."}
                         </dt>
                         <dd>{purchase.supplierInvoiceNo}</dd>
-                      </div>
-                    )}
-                    {purchase.commissionAgentInvoiceNo && (
-                      <div className="flex justify-between gap-4">
-                        <dt>Agent GST Bill No.</dt>
-                        <dd>{purchase.commissionAgentInvoiceNo}</dd>
                       </div>
                     )}
                     <div className="flex justify-between gap-4">
@@ -282,7 +276,7 @@ export default async function PurchaseDetailPage({
                     </div>
                     {purchase.commissionAgent && (
                       <p className="text-xs text-amber-700">
-                        Agent: {purchase.commissionAgent.name}
+                        Commission agent: {purchase.commissionAgent.name}
                       </p>
                     )}
                   </>

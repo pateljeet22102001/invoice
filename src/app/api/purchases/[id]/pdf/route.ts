@@ -12,11 +12,13 @@ export async function GET(
   const { id } = await params;
   const purchase = await getPurchaseDetail(businessId, id);
 
+  const isFarmerReceipt =
+    purchase.purchaseType === "FARMER" || purchase.purchaseType === "UNREGISTERED";
+  const filename = `${purchase.purchaseNumber}${isFarmerReceipt ? "-receipt" : "-bill"}.pdf`;
+
   const buffer = await renderToBuffer(
     createElement(PurchasePdfDocument, { purchase }) as never,
   );
-
-  const filename = `${purchase.purchaseNumber}-receipt.pdf`;
 
   return new Response(new Uint8Array(buffer), {
     headers: {

@@ -149,9 +149,13 @@ export async function buildGstr2bExport(
       });
     }
 
+    const agentInvoiceNo =
+      purchase.commissionAgentInvoiceNo?.trim() ||
+      purchase.supplierInvoiceNo?.trim();
+
     if (
       purchase.commissionAgent?.gstin &&
-      purchase.commissionAgentInvoiceNo?.trim() &&
+      agentInvoiceNo &&
       purchase.commissionAmount > 0
     ) {
       const agent = purchase.commissionAgent;
@@ -168,7 +172,7 @@ export async function buildGstr2bExport(
       inwardSupplies.push({
         supplierGstin: agentGstin,
         supplierName: agent.name,
-        invoiceNumber: purchase.commissionAgentInvoiceNo.trim(),
+        invoiceNumber: agentInvoiceNo,
         invoiceDate: formatGstDate(purchase.billDate),
         invoiceValue:
           Math.round((commissionTaxable + commissionTaxable * 0.18) * 100) / 100,

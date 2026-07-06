@@ -19,7 +19,6 @@ export default async function NewPurchasePage() {
         gstin: true,
         commissionRate: true,
         name: true,
-        apmcMarketName: true,
       },
     }),
     getSupplierDb(prisma).findMany({
@@ -61,10 +60,9 @@ export default async function NewPurchasePage() {
         </div>
 
         <PurchaseForm
-          businessName={business?.name ?? ""}
-          apmcMarketName={business?.apmcMarketName ?? null}
           businessState={business?.state ?? null}
           businessGstin={business?.gstin ?? null}
+          defaultCommissionRate={business?.commissionRate ?? 2.5}
           suppliers={suppliers}
           products={products.map((product) => ({
             id: product.id,

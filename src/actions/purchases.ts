@@ -16,7 +16,7 @@ import { requireBusiness } from "@/lib/session";
 import { splitGstTax } from "@/lib/gst";
 import { roundQuantity } from "@/lib/constants/product-units";
 import { findOrCreateProductForPurchase } from "@/lib/products/ensure-product";
-import { findOrCreateSupplierForPurchase } from "@/lib/suppliers/ensure-supplier";
+import { findOrCreateSupplierForPurchase, findOrCreateCommissionAgent } from "@/lib/suppliers/ensure-supplier";
 import { defaultGstForPurchaseType } from "@/lib/constants/purchase-gst";
 import { getField, getNumber, type FormState } from "@/lib/form";
 
@@ -181,10 +181,12 @@ export async function createPurchaseAction(
   const newSupplierName = getField(formData, "newSupplierName");
   const newSupplierVillage = getField(formData, "newSupplierVillage");
   const supplierInvoiceNo = getField(formData, "supplierInvoiceNo");
-  const commissionAgentInvoiceNo = getField(formData, "commissionAgentInvoiceNo");
   const purchaseType = getField(formData, "purchaseType") || "B2B";
-  const commissionAgentId = getField(formData, "commissionAgentId");
+  const commissionAgentIdRaw = getField(formData, "commissionAgentId");
   const commissionRateRaw = getField(formData, "commissionRate");
+  const mandiOwnerName = getField(formData, "mandiOwnerName");
+  const mandiShopNo = getField(formData, "mandiShopNo");
+  const mandiGstin = getField(formData, "mandiGstin");
   const billDateRaw = getField(formData, "billDate");
   const dueDateRaw = getField(formData, "dueDate");
   const paymentMode = getField(formData, "paymentMode") || "CASH";
@@ -211,11 +213,67 @@ export async function createPurchaseAction(
     return { error: "Business profile not found." };
   }
 
-  const inlineSupplierAllowed = ["FARMER", "UNREGISTERED", "APMC_MANDI"].includes(
-    purchaseType,
-  );
-
+  let commissionAgent: { id: string; gstin: string | null; name: string; state: string | null } | null =
+    null;
+  let commissionRate = 0;
+  let commissionAmount = 0;
   let supplierId = supplierIdRaw;
+  let commissionAgentInvoiceNo = "";
+
+  if (purchaseType === "APMC_MANDI") {
+    if (!mandiOwnerName.trim()) {
+      return { error: "Enter mandi owner / shop name." };
+    }
+
+    if (!mandiShopNo.trim()) {
+      return { error: "Enter mandi shop number." };
+    }
+
+    if (!supplierInvoiceNo.trim()) {
+      return { error: "Enter I-Form number (bill from commission agent)." };
+    }
+
+    let resolvedCommissionAgentId = commissionAgentIdRaw;
+
+    try {
+      resolvedCommissionAgentId = await findOrCreateCommissionAgent(prisma, businessId, {
+        name: mandiOwnerName,
+        shopLicenseNo: mandiShopNo,
+        gstin: mandiGstin || undefined,
+        state: business.state,
+      });
+    } catch (error) {
+      if (error instanceof Error) {
+        return { error: error.message };
+      }
+      return { error: "Could not save mandi shop details." };
+    }
+
+    supplierId = resolvedCommissionAgentId;
+
+    commissionAgent = (await getSupplierDb(prisma).findFirst({
+      where: { id: resolvedCommissionAgentId, businessId, supplierType: "APMC_AGENT" },
+      select: { id: true, gstin: true, name: true, state: true },
+    })) as { id: string; gstin: string | null; name: string; state: string | null } | null;
+
+    if (!commissionAgent) {
+      return { error: "Commission agent not found." };
+    }
+
+    commissionRate = commissionRateRaw
+      ? getNumber(formData, "commissionRate")
+      : business.commissionRate ?? 0;
+
+    if (!Number.isFinite(commissionRate) || commissionRate < 0 || commissionRate > 100) {
+      return { error: "Enter a valid commission rate (0–100%)." };
+    }
+
+    if (commissionAgent.gstin) {
+      commissionAgentInvoiceNo = supplierInvoiceNo.trim();
+    }
+  }
+
+  const inlineSupplierAllowed = ["FARMER", "UNREGISTERED"].includes(purchaseType);
 
   if (newSupplierName.trim()) {
     if (!inlineSupplierAllowed) {
@@ -240,7 +298,12 @@ export async function createPurchaseAction(
   }
 
   if (!supplierId) {
-    return { error: "Select or type farmer / supplier name." };
+    return {
+      error:
+        purchaseType === "APMC_MANDI"
+          ? "Enter mandi shop details."
+          : "Select or type farmer / supplier name.",
+    };
   }
 
   const supplier = (await getSupplierDb(prisma).findFirst({
@@ -412,12 +475,8 @@ export async function createPurchaseAction(
     };
   }
 
-  let commissionRate = 0;
-  let commissionAmount = 0;
-
-  if (purchaseType === "APMC_MANDI") {
-    commissionRate = 0;
-    commissionAmount = 0;
+  if (purchaseType === "APMC_MANDI" && subtotal > 0 && commissionRate > 0) {
+    commissionAmount = Math.round(subtotal * (commissionRate / 100) * 100) / 100;
   }
 
   const total = subtotal + taxAmount + commissionAmount;
@@ -441,14 +500,16 @@ export async function createPurchaseAction(
           businessId,
           purchaseNumber,
           supplierInvoiceNo: supplierInvoiceNo.trim() || undefined,
-          commissionAgentInvoiceNo:
-            purchaseType === "APMC_MANDI"
-              ? undefined
-              : commissionAgentInvoiceNo.trim() || undefined,
+          commissionAgentInvoiceNo: commissionAgentInvoiceNo.trim() || undefined,
           purchaseType: purchaseType as "B2B" | "FARMER" | "UNREGISTERED" | "APMC_MANDI",
           supplierId,
-          commissionRate: purchaseType === "APMC_MANDI" ? undefined : commissionRate,
-          commissionAmount: purchaseType === "APMC_MANDI" ? undefined : commissionAmount,
+          commissionAgentId: commissionAgent?.id ?? undefined,
+          commissionRate:
+            purchaseType === "APMC_MANDI" ? commissionRate : undefined,
+          commissionAmount,
+          apmcMarketName:
+            purchaseType === "APMC_MANDI" ? mandiOwnerName.trim() : undefined,
+          mandiShopNo: purchaseType === "APMC_MANDI" ? mandiShopNo.trim() : undefined,
           status: status as "DRAFT" | "RECEIVED" | "PAID" | "CANCELLED",
           paymentMode: paymentMode as "CASH" | "CHEQUE" | "CREDIT",
           chequeNumber:
